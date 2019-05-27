@@ -23,7 +23,7 @@ namespace SudokuSolver
     public partial class MainWindow : Window
     {
         //grid[row][column]
-        private short[][] grid =
+        private readonly short[][] grid =
         {
             new short[] { 0,0,0,0,0,0,0,0,0 },//1
             new short[] { 0,0,0,0,0,0,0,0,0 },//2
@@ -35,9 +35,9 @@ namespace SudokuSolver
             new short[] { 0,0,0,0,0,0,0,0,0 },//8
             new short[] { 0,0,0,0,0,0,0,0,0 } //9
         };
-        private Button[][] bGrid = new Button[9][];
+        private readonly Button[][] bGrid = new Button[9][];
         private bool TryingToSolve = false;
-        private Thread solveThread;
+        private readonly Thread solveThread;
 
         public MainWindow()
         {
@@ -240,14 +240,8 @@ namespace SudokuSolver
                         TrySolvingColumn(r);
                         Application.Current.Dispatcher.Invoke(RefreshGrid);
                     }
-                    for (short x = 0; x < 3; x++)
-                    {
-                        for (short y = 0; y < 3; y++)
-                        {
-                            TrySolvingBox(new Tuple<short, short>(x, y));
-                            Application.Current.Dispatcher.Invoke(RefreshGrid);
-                        }
-                    }
+                    TrySolvingBoxes();
+                    Application.Current.Dispatcher.Invoke(RefreshGrid);
                 }
                 Thread.Sleep(500);
             }
@@ -309,7 +303,7 @@ namespace SudokuSolver
             }
         }
 
-        private void TrySolvingBox(Tuple<short, short> box)
+        private void TrySolvingBoxes()
         {
             List<List<short>> possible = new List<List<short>>();
             for (short p = 0; p < 9; p++)
