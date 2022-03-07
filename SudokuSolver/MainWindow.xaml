@@ -9,6 +9,7 @@
         Closed="Window_Closed">
     <Window.CommandBindings>
         <CommandBinding Command="Save" Executed="Save_Command"/>
+        <CommandBinding Command="New" Executed="BruteForceCommand"/>
     </Window.CommandBindings>
     <Grid>
         <Grid.ColumnDefinitions>

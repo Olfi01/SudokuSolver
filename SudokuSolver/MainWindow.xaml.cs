@@ -35,9 +35,23 @@ namespace SudokuSolver
             new short[] { 0,0,0,0,0,0,0,0,0 },//8
             new short[] { 0,0,0,0,0,0,0,0,0 } //9
         };
+        private readonly short[][] bfGrid =
+        {
+            new short[] { 0,0,0,0,0,0,0,0,0 },//1
+            new short[] { 0,0,0,0,0,0,0,0,0 },//2
+            new short[] { 0,0,0,0,0,0,0,0,0 },//3
+            new short[] { 0,0,0,0,0,0,0,0,0 },//4
+            new short[] { 0,0,0,0,0,0,0,0,0 },//5
+            new short[] { 0,0,0,0,0,0,0,0,0 },//6
+            new short[] { 0,0,0,0,0,0,0,0,0 },//7
+            new short[] { 0,0,0,0,0,0,0,0,0 },//8
+            new short[] { 0,0,0,0,0,0,0,0,0 } //9
+        };
         private readonly Button[][] bGrid = new Button[9][];
         private bool TryingToSolve = false;
         private readonly Thread solveThread;
+        private bool TryingToBruteForce = false;
+        private readonly Thread bruteForceThread;
 
         public MainWindow()
         {
@@ -46,6 +60,8 @@ namespace SudokuSolver
             RefreshGrid();
             solveThread = new Thread(SolveThread);
             solveThread.Start();
+            bruteForceThread = new Thread(BruteForceThread);
+            bruteForceThread.Start();
         }
 
         #region Initializing
@@ -146,12 +162,12 @@ namespace SudokuSolver
         #endregion
 
         #region Testing
-        private bool ExistsInRow(short row, short num)
+        private bool ExistsInRow(short row, short num, short[][] grid)
         {
             return (grid[row].Contains(num));
         }
 
-        private bool ExistsInColumn(short column, short num)
+        private bool ExistsInColumn(short column, short num, short[][] grid)
         {
             short[] f =
             {
@@ -168,7 +184,7 @@ namespace SudokuSolver
             return f.Contains(num);
         }
 
-        private bool ExistsInBox(Tuple<short, short> box, short num)
+        private bool ExistsInBox(Tuple<short, short> box, short num, short[][] grid)
         {
             List<short> boxList = new List<short>();
             int rowStart = box.Item1 * 3;
@@ -185,12 +201,12 @@ namespace SudokuSolver
             return boxList.Contains(num);
         }
 
-        private bool CanBePlaced(short num, short row, short col)
+        private bool CanBePlaced(short num, short row, short col, short[][] grid)
         {
             if (num == 0) return true;
-            if (ExistsInRow(row, num)) return false;
-            if (ExistsInColumn(col, num)) return false;
-            if (ExistsInBox(GetBox(row, col), num)) return false;
+            if (ExistsInRow(row, num, grid)) return false;
+            if (ExistsInColumn(col, num, grid)) return false;
+            if (ExistsInBox(GetBox(row, col), num, grid)) return false;
             return true;
         }
         #endregion
@@ -209,6 +225,11 @@ namespace SudokuSolver
         {
             TryingToSolve = !TryingToSolve;
         }
+
+        public void BruteForceCommand(object sender, RoutedEventArgs e)
+        {
+            TryingToBruteForce = !TryingToBruteForce;
+        }
         #endregion
 
         #region Thread Methods
@@ -223,7 +244,7 @@ namespace SudokuSolver
                         for (short c = 0; c < 9; c++)
                         {
                             if (grid[r][c] != 0) continue;
-                            List<short> possible = GetPossibleNums(r, c);
+                            List<short> possible = GetPossibleNums(r, c, grid);
                             if (possible.Count < 1)
                             {
                                 MessageBox.Show("Impossible to solve.");
@@ -246,15 +267,58 @@ namespace SudokuSolver
                 Thread.Sleep(500);
             }
         }
+
+        private void BruteForceThread()
+        {
+            while (true)
+            {
+                while (TryingToBruteForce)
+                {
+                    grid.CopyTo(bfGrid);
+                    if (BruteFillGrid(bfGrid))
+                    {
+                        bfGrid.CopyTo(grid);
+                        Application.Current.Dispatcher.Invoke(RefreshGrid);
+                    }
+                    else
+                    {
+                        Thread.Sleep(100);
+                    }
+                    Thread.Sleep(500);
+                }
+                Thread.Sleep(500);
+            }
+        }
+
+        private bool BruteFillGrid(short[][] bfGrid)
+        {
+            for (short r = 0; r < 9; r++)
+            {
+                for (short c = 0; c < 9; c++)
+                {
+                    if (bfGrid[r][c] != 0) continue;
+                    List<short> possible = GetPossibleNums(r, c, bfGrid);
+                    if (possible.Count < 1) return false;
+                    foreach (short p in possible)
+                    {
+                        bfGrid[r][c] = p;
+                        if (BruteFillGrid(bfGrid)) return true;
+                        else bfGrid[r][c] = 0;
+                    }
+                    return false;
+                }
+            }
+            return true;
+        }
         #endregion
 
         #region Solving Methods
-        private List<short> GetPossibleNums(short row, short column)
+        private List<short> GetPossibleNums(short row, short column, short[][] grid)
         {
             List<short> answer = new List<short>();
             for (short i = 1; i <= 9; i++)
             {
-                if (CanBePlaced(i, row, column)) answer.Add(i);
+                if (CanBePlaced(i, row, column, grid)) answer.Add(i);
             }
             return answer;
         }
@@ -269,7 +333,7 @@ namespace SudokuSolver
             for (short c = 0; c < 9; c++)
             {
                 if (grid[row][c] != 0) continue;
-                possible[c].AddRange(GetPossibleNums(row, c));
+                possible[c].AddRange(GetPossibleNums(row, c, grid));
             }
             for (short i = 0; i < 9; i++)
             {
@@ -291,7 +355,7 @@ namespace SudokuSolver
             for (short r = 0; r < 9; r++)
             {
                 if (grid[r][col] != 0) continue;
-                possible[r].AddRange(GetPossibleNums(r, col));
+                possible[r].AddRange(GetPossibleNums(r, col, grid));
             }
             for (short i = 0; i < 9; i++)
             {
@@ -315,7 +379,7 @@ namespace SudokuSolver
                 short row = Convert.ToInt16(f / 3);
                 short col = Convert.ToInt16(f % 3);
                 if (grid[row][col] != 0) continue;
-                possible[f].AddRange(GetPossibleNums(row, col));
+                possible[f].AddRange(GetPossibleNums(row, col, grid));
             }
             for (short i = 0; i < 9; i++)
             {
@@ -346,7 +410,7 @@ namespace SudokuSolver
             ChooseNumberDialog cnd = new ChooseNumberDialog(grid[row][column]);
             if (cnd.ShowDialog() == true)
             {
-                if (CanBePlaced(cnd.Number, row, column))
+                if (CanBePlaced(cnd.Number, row, column, grid))
                     grid[row][column] = cnd.Number;
                 else MessageBox.Show("Ungültig");
             }
@@ -371,6 +435,7 @@ namespace SudokuSolver
         private void Window_Closed(object sender, EventArgs e)
         {
             solveThread.Abort();
+            bruteForceThread.Abort();
         }
         #endregion
     }
